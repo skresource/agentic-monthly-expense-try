@@ -98,8 +98,42 @@ def analyze_duplicate_clarification(user_input, pending_duplicate):
 
 
 # --- STREAMLIT UI ---
+
+def apply_custom_style():
+    st.markdown(
+        """
+        <style>
+            /* Shrink the main title */
+            h1 {
+                font-size: 1.8rem !important;
+                font-weight: 500;
+                color: #1E3A8A;
+            }
+            /* Shrink chat message text */
+            .stChatMessage p {
+                font-size: 0.95rem !important;
+            }
+            /* Make the chat input area more compact */
+            .stChatInput {
+                padding-bottom: 20px;
+            }
+            /* Adjust overall padding to make it tighter */
+            .block-container {
+                padding-top: 2rem;
+                padding-bottom: 2rem;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+
 st.set_page_config(page_title="Expense Agent", page_icon="📝")
 st.title("Agentic Expense Manager")
+
+# Call this at the very beginning of your app (after st.set_page_config)
+apply_custom_style()
 
 if "messages" not in st.session_state:
     st.session_state.messages = []

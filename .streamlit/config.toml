@@ -1,0 +1,9 @@
+[theme]
+primaryColor = "#1a73e8"      # Google Blue
+backgroundColor = "#ffffff"   # White background
+secondaryBackgroundColor = "#f8f9fa" # Light grey for sidebar/input
+textColor = "#3c4043"
+font = "sans serif"
+
+[layout]
+pageLimit = "centered"        # Keeps the chat from stretching too wide
