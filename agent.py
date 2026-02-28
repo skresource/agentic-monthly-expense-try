@@ -1,3 +1,8 @@
+"""
+Agentic Tool
+This tool help me to add my expense report in natural language and calculate them
+"""
+
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
@@ -244,20 +249,37 @@ else:
                     # Summary
                     summary = get_monthly_summary(expense_df, selected_month)
                     
-                    st.sidebar.markdown("#### Monthly Summary")
-                    st.sidebar.metric("Total Expense", f"₹{summary['total']}")
-                    st.sidebar.metric("Transactions", summary['count'])
+                    # Display in MAIN AREA, not sidebar
+                    st.markdown(f"## 📊 Monthly Report: {selected_month}")
                     
-                    # Pie chart
-                    st.sidebar.markdown("**Expense Breakdown:**")
-                    pie_chart = create_monthly_pie_chart(expense_df, selected_month)
-                    if pie_chart:
-                        st.sidebar.image(pie_chart, use_column_width=True)
+                    # Metrics in main area
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Expense", f"₹{summary['total']}")
+                    with col2:
+                        st.metric("Transactions", summary['count'])
+                    with col3:
+                        avg = summary['total'] / summary['count'] if summary['count'] > 0 else 0
+                        st.metric("Avg per Transaction", f"₹{avg:.2f}")
                     
-                    # LLM-generated report
-                    st.sidebar.markdown("**AI-Generated Insights:**")
+                    # Pie chart in main area
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        st.markdown("### Expense Breakdown")
+                        pie_chart = create_monthly_pie_chart(expense_df, selected_month)
+                        if pie_chart:
+                            st.image(pie_chart, width='stretch')
+                    
+                    with col2:
+                        st.markdown("### Category Details")
+                        for subject, data in summary['by_subject'].items():
+                            st.write(f"**{subject}**: ₹{data['amount']} ({data['count']} transactions)")
+                    
+                    # LLM-generated report in main area
+                    st.markdown("---")
+                    st.markdown("### 🤖 AI-Generated Insights")
                     report = generate_monthly_report(expense_df, selected_month, genai.GenerativeModel('gemini-2.5-flash-lite'))
-                    st.sidebar.markdown(report)
+                    st.markdown(report)
         else:
             st.sidebar.info("No months with data")
     
@@ -278,34 +300,37 @@ else:
                         # Comparison data
                         comparison = compare_months(expense_df, month1, month2)
                         
-                        # Summary metrics
-                        st.sidebar.markdown("#### Comparison Summary")
-                        col1, col2 = st.sidebar.columns(2)
+                        # Display in MAIN AREA
+                        st.markdown(f"## 📊 Expense Comparison: {month1} vs {month2}")
+                        
+                        # Summary metrics in main area
+                        col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.sidebar.metric(month1, f"₹{comparison['total1']}")
+                            st.metric(month1, f"₹{comparison['total1']}")
                         with col2:
-                            st.sidebar.metric(month2, f"₹{comparison['total2']}")
+                            st.metric(month2, f"₹{comparison['total2']}")
+                        with col3:
+                            trend_emoji = "📈" if comparison['trend'] == "increased" else "📉" if comparison['trend'] == "decreased" else "➡️"
+                            st.metric(
+                                "Trend",
+                                f"{comparison['percent_change']:+.1f}%",
+                                f"{trend_emoji} ₹{comparison['difference']:+.2f}"
+                            )
                         
-                        # Trend
-                        trend_emoji = "📈" if comparison['trend'] == "increased" else "📉" if comparison['trend'] == "decreased" else "➡️"
-                        st.sidebar.write(
-                            f"{trend_emoji} **Trend**: {comparison['trend'].upper()} "
-                            f"({comparison['percent_change']:+.1f}% | ₹{comparison['difference']:+.2f})"
-                        )
-                        
-                        # Comparison chart
-                        st.sidebar.markdown("**Visual Comparison:**")
+                        # Comparison chart in main area
+                        st.markdown("### Visual Comparison")
                         comparison_chart = create_comparison_chart(expense_df, month1, month2)
                         if comparison_chart:
-                            st.sidebar.image(comparison_chart, use_column_width=True)
+                            st.image(comparison_chart, width='stretch')
                         
-                        # LLM-generated report
-                        st.sidebar.markdown("**AI-Generated Insights:**")
+                        # LLM-generated report in main area
+                        st.markdown("---")
+                        st.markdown("### 🤖 AI-Generated Insights")
                         report = generate_comparison_report(
                             expense_df, month1, month2,
                             genai.GenerativeModel('gemini-2.5-flash-lite')
                         )
-                        st.sidebar.markdown(report)
+                        st.markdown(report)
                 else:
                     st.sidebar.error("Select two different months!")
         else:

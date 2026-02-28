@@ -7,11 +7,40 @@ Includes monthly summaries, comparisons, visualizations, and LLM-powered insight
 
 import pandas as pd
 import json
+import numpy as np
 from datetime import datetime
 from pathlib import Path
 import google.generativeai as genai
 import matplotlib.pyplot as plt
 import io
+
+
+# --- HELPER FUNCTIONS ---
+
+def convert_to_native_types(obj):
+    """
+    Convert pandas/numpy data types to native Python types for JSON serialization.
+    
+    Args:
+        obj: Object to convert
+        
+    Returns:
+        Converted object with native Python types
+    """
+    if isinstance(obj, dict):
+        return {k: convert_to_native_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_native_types(item) for item in obj]
+    elif isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+        return float(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, (pd.Timestamp, datetime)):
+        return str(obj)
+    else:
+        return obj
 
 
 # --- DATA LOADING FUNCTIONS ---
@@ -255,21 +284,25 @@ def generate_monthly_report(df: pd.DataFrame, month: str, gemini_model=None) -> 
     if not summary['exists']:
         return f"No expense data found for {month}."
     
-    summary_json = json.dumps(summary, indent=2)
+    # Convert pandas types to native Python types for JSON serialization
+    summary_converted = convert_to_native_types(summary)
+    summary_json = json.dumps(summary_converted, indent=2)
     
     prompt = f"""
-    Based on this expense summary for {month}, generate a detailed and insightful report:
+    Based on this expense summary for {month}, generate a CONCISE and BULLETED report:
     
     {summary_json}
     
-    Include:
-    1. Total expenses for the month
-    2. Top 3 spending categories
-    3. Average per transaction
-    4. Any notable patterns or observations
-    5. Brief recommendation or insight
+    IMPORTANT: Keep response under 300 words. Use bullet points for clarity.
     
-    Keep the report concise (3-4 paragraphs), natural, and easy to understand.
+    Format your response with:
+    • Total expenses and transaction count
+    • Top 3 spending categories (with amounts)
+    • Average per transaction
+    • Key observations (2-3 bullet points)
+    • One brief recommendation
+    
+    Be direct, concise, and use bullet points. No long paragraphs I am using INR or Indian Rupee as currency not USD.
     """
     
     response = gemini_model.generate_content(prompt)
@@ -290,21 +323,24 @@ def generate_comparison_report(df: pd.DataFrame, month1: str, month2: str, gemin
         str: LLM-generated natural language comparison report
     """
     comparison = compare_months(df, month1, month2)
-    comparison_json = json.dumps(comparison, indent=2)
+    # Convert pandas types to native Python types for JSON serialization
+    comparison_converted = convert_to_native_types(comparison)
+    comparison_json = json.dumps(comparison_converted, indent=2)
     
     prompt = f"""
-    Generate a detailed comparison report between {month1} and {month2} expenses:
+    Generate a CONCISE, BULLETED comparison report between {month1} and {month2}:
     
     {comparison_json}
     
-    Include:
-    1. Overall spending trend (increased/decreased/same)
-    2. Percentage change and absolute difference
-    3. Categories that changed the most
-    4. Key insights from the comparison
-    5. Brief recommendation or observation
+    IMPORTANT: Keep response under 300 words. Use bullet points for clarity.
     
-    Keep the report concise (3-4 paragraphs), natural, and easy to understand.
+    Format your response with:
+    • Overall spending trend with percentage change and absolute difference
+    • Categories with biggest increase/decrease (top 2-3)
+    • Key insights (2-3 bullet points)
+    • One brief recommendation
+    
+    Be direct, concise, and use bullet points. No long paragraphs. I am using INR or Indian Rupee as currency not USD
     """
     
     response = gemini_model.generate_content(prompt)
