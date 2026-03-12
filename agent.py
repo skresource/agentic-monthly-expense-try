@@ -141,6 +141,9 @@ if "messages" not in st.session_state:
 if "pending_duplicate" not in st.session_state:
     st.session_state.pending_duplicate = None
 
+if "default_report_loaded" not in st.session_state:
+    st.session_state.default_report_loaded = False
+
 
 for msg in st.session_state.messages:
     with st.chat_message(msg['role']):
@@ -243,11 +246,58 @@ else:
     # Tabs for different reports
     analysis_tab = st.sidebar.radio(
         "Select Report Type:",
-        ["Quick Stats", "Monthly Report", "Month Comparison"]
+        ["Summary", "Quick Stats", "Monthly Report (AI)", "Month Comparison (AI)", "View Details"]
     )
     
+    # --- SUMMARY TAB (DEFAULT) ---
+    if analysis_tab == "Summary":
+        st.sidebar.markdown("#### Monthly Summary (No AI Analysis)")
+        st.markdown("## 📊 Monthly Summary")
+        
+        months = get_months_in_data(expense_df)
+        
+        if months:
+            # Get current and previous month
+            from datetime import datetime, timedelta
+            current_month = datetime.now().strftime("%B")
+            
+            # Calculate previous month
+            first_day_current = datetime(datetime.now().year, datetime.now().month, 1)
+            last_day_prev = first_day_current - timedelta(days=1)
+            previous_month = last_day_prev.strftime("%B")
+            
+            # Get totals
+            current_total = 0
+            prev_total = 0
+            
+            if current_month in months:
+                current_summary = get_monthly_summary(expense_df, current_month)
+                current_total = current_summary['total']
+            
+            if previous_month in months:
+                prev_summary = get_monthly_summary(expense_df, previous_month)
+                prev_total = prev_summary['total']
+            
+            # Display metrics
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(f"💰 {current_month} (This Month)", f"₹{current_total:.2f}")
+            with col2:
+                st.metric(f"📅 {previous_month} (Last Month)", f"₹{prev_total:.2f}")
+            
+            # Show difference
+            if current_total > 0 and prev_total > 0:
+                difference = current_total - prev_total
+                percent_change = (difference / prev_total) * 100 if prev_total > 0 else 0
+                trend_emoji = "📈" if difference > 0 else "📉" if difference < 0 else "➡️"
+                
+                st.markdown("---")
+                st.write(f"{trend_emoji} **Difference:** ₹{difference:+.2f} ({percent_change:+.1f}%)")
+        else:
+            st.info("No expense data available")
+    
     # --- QUICK STATS TAB ---
-    if analysis_tab == "Quick Stats":
+    elif analysis_tab == "Quick Stats":
         st.sidebar.markdown("#### Quick Summary")
         stats = get_quick_stats(expense_df)
         
@@ -272,7 +322,7 @@ else:
                 st.sidebar.write(f"₹{stats['lowest_amount']}")
     
     # --- MONTHLY REPORT TAB ---
-    elif analysis_tab == "Monthly Report":
+    elif analysis_tab == "Monthly Report (AI)":
         months = get_months_in_data(expense_df)
         
         if months:
@@ -318,7 +368,7 @@ else:
             st.sidebar.info("No months with data")
     
     # --- MONTH COMPARISON TAB ---
-    elif analysis_tab == "Month Comparison":
+    elif analysis_tab == "Month Comparison (AI)":
         months = get_months_in_data(expense_df)
         
         if len(months) >= 2:
@@ -369,7 +419,58 @@ else:
                     st.sidebar.error("Select two different months!")
         else:
             st.sidebar.info(f"Need at least 2 months with data. You have {len(months)} month(s).")
+    
+    # --- VIEW DETAILS TAB ---
+    elif analysis_tab == "View Details":
+        st.sidebar.markdown("#### View Detailed Entries")
+        months = get_months_in_data(expense_df)
+        
+        if months:
+            selected_month = st.sidebar.selectbox("Select Month:", months, key="view_details_month")
+            
+            if st.sidebar.button("🔍 Go", key="view_details_go"):
+                # Get detailed entries for the selected month
+                month_summary = get_monthly_summary(expense_df, selected_month)
+                
+                # Display in main area
+                st.markdown(f"## 📋 Expense Details - {selected_month}")
+                
+                if month_summary['exists'] and month_summary['entries']:
+                    # Summary metrics
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Expense", f"₹{month_summary['total']}")
+                    with col2:
+                        st.metric("Transactions", month_summary['count'])
+                    with col3:
+                        avg = month_summary['total'] / month_summary['count'] if month_summary['count'] > 0 else 0
+                        st.metric("Avg per Transaction", f"₹{avg:.2f}")
+                    
+                    st.markdown("---")
+                    st.markdown("### All Entries")
+                    
+                    # Create a dataframe for the entries
+                    entries_df = pd.DataFrame(month_summary['entries'])
+                    
+                    # Reorder columns for better display
+                    if 'Date' in entries_df.columns:
+                        entries_df = entries_df[['Date', 'Amount', 'Sent To', 'Remarks']]
+                    
+                    # Display as a formatted table
+                    st.dataframe(
+                        entries_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "Date": st.column_config.TextColumn("Date", width="small"),
+                            "Amount": st.column_config.NumberColumn("Amount", format="₹ %.2f"),
+                            "Sent To": st.column_config.TextColumn("Sent To", width="medium"),
+                            "Remarks": st.column_config.TextColumn("Remarks", width="large")
+                        }
+                    )
+                else:
+                    st.info(f"No entries found for {selected_month}")
+        else:
+            st.sidebar.info("No months with data")
 
 
-
- 
