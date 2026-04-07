@@ -5,3 +5,4 @@ langchain-openai
 google-generativeai 
 python-dotenv
 matplotlib
+gunicorn
